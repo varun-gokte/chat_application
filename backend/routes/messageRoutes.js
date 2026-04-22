@@ -39,8 +39,13 @@ router.post("/new", async (req,res) => {
         sender: userId
       }
     })
+    
+    const chat = await Chat.findById(chatId).populate("participants");
     const io = getIO()
-    io.to(chatId).emit("new_message", newMessage);
+    
+    chat.participants.forEach((participant) => {
+        io.to(participant._id.toString()).emit("new_message", { chatId, message: newMessage, sender: userId });
+    });
     return res.status(200).json({message:newMessage});
   }
   catch(err){

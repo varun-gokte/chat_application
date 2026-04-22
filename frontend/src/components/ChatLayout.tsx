@@ -4,6 +4,7 @@ import PanelHeader from "./PanelHeader";
 import { useEffect, useState } from "react";
 import type { Chat } from "../types";
 import { getChats } from "../apis";
+import { socket } from "../socket";
 
 export default function ChatLayout({username, userId, firstName}: {username:string, userId:string, firstName: string}) {
   const [chatsList, setChatsList] = useState<Chat[]>([]);
@@ -16,6 +17,23 @@ export default function ChatLayout({username, userId, firstName}: {username:stri
     })
   },[]);
 
+  
+  useEffect(()=> {
+    socket.auth = { userId: userId}
+    socket.connect();
+    socket.on("connect", () => console.log('socket connected',socket.id));
+    socket.on("disconnect",() => console.log('socket disconnected', socket.id));
+    
+    socket.on("new_chat", (c) => setChatsList(prev=>[...prev,c]));
+    socket.on("new_message", (m) => console.log("new message", m));
+
+    return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.disconnect();
+    }
+  },[]);
+
   return (
     <div className="flex h-[calc(100vh-64px)] bg-gray-100">
       {firstName}
@@ -23,7 +41,9 @@ export default function ChatLayout({username, userId, firstName}: {username:stri
        <PanelHeader setCurrentChat={setCurrentChat} />
         <div className="flex flex-col gap-2">
           {chatsList.map((chat,index) => {
-            const otherUser = chat.participants.filter(p=>p.username!=username)[0];
+            if (!chat ||Object.keys(chat).length==0)
+              return <div></div>;
+            const otherUser = chat.participants?.filter(p=>p.username!=username)[0];
             const content = chat.lastMessage?.content;
             const timestamp = chat.lastMessage?.timestamp;
             const isSelected = currentChat?._id === chat._id;

@@ -10,8 +10,9 @@ import { socket } from "../socket";
 export default function ChatWindow(props: {
   currentChat: Chat | undefined;
   userId: string | undefined;
+  newMessage?: Message | null;
 }) {
-  const { currentChat, userId } = props;
+  const { currentChat, userId, newMessage } = props;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -30,7 +31,6 @@ export default function ChatWindow(props: {
   };
 
   useEffect(() => {
-  console.log("is near bottom",isNearBottom())
     if (isNearBottom()) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       setHasNewMessages(false);
@@ -39,12 +39,17 @@ export default function ChatWindow(props: {
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (newMessage && newMessage.chatId === currentChat?._id) {
+      setMessages((prev) => [...prev, newMessage]);
+    }
+  }, [newMessage]);
+
   
   useEffect(() => {
     if (!currentChat?._id) return;
 
     getMessages(currentChat._id).then(res=>{
-      console.log(res.data)
       if (res.status==200)
         setMessages(res.data)
       else
@@ -52,27 +57,14 @@ export default function ChatWindow(props: {
     })
   }, [currentChat?._id]);
 
-  useEffect(()=> {
+  useEffect(()=>{
     if (!currentChat?._id) return;
-    socket.connect();
-
-    socket.on("connect", () => console.log('socket connected',socket.id))
     
     socket.emit("join_room", currentChat._id);
 
-    socket.on("new_message", (m) => setMessages(prev=>[...prev,m]))
+    // socket.on("new_message", (m) => setMessages(prev=>[...prev,m]))
+  },[currentChat?._id])
 
-    socket.on("new_chat", (c) => console.log("new chat",c))
-
-    socket.on("disconnect",() => console.log('socket disconnected', socket.id))
-
-    return () => {
-      socket.off("connect");
-      socket.off("disconnect");
-      socket.disconnect();
-    }
-  },[currentChat?._id]);
-  
   const sendMessage = () => {
     if (!input.trim() || !currentChat) return;
 

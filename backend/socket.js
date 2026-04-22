@@ -13,6 +13,10 @@ export const initSocket = (server) => {
   io.on('connect',(socket)=>{
     console.log('socket connected', socket.id)
 
+    const userId = socket.handshake.auth.userId;
+    if (userId)
+      socket.join(userId);
+
     socket.on("join_room", (chatId) => {
       if (!chatId){
         console.log("join chat called without chatId")

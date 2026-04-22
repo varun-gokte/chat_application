@@ -26,13 +26,12 @@ router.post("/new", async (req,res)=>{
     if (existingChat)
       return res.sendStatus(400)
     
-    const newChat = await Chat.create({participants:[userId, participantId]});
+    const newChat = await (await Chat.create({participants:[userId, participantId]})).populate("participants");
 
     if (!newChat)
       return res.sendStatus(500);
 
     const io = getIO()
-    console.log(userId, participantId, userId===participantId)
     io.to(userId).emit("new_chat", newChat);
     io.to(participantId).emit("new_chat", newChat);
 

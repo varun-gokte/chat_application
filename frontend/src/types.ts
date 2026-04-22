@@ -15,7 +15,8 @@ type Chat = {
     content: string,
     timestamp: string,
     sender: User
-  }
+  };
+  updatedAt?:string;
 }
 
 type Message = {
