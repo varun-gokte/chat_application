@@ -10,9 +10,8 @@ import { socket } from "../socket";
 export default function ChatWindow(props: {
   currentChat: Chat | undefined;
   userId: string | undefined;
-  newMessage?: Message | null;
 }) {
-  const { currentChat, userId, newMessage } = props;
+  const { currentChat, userId } = props;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -38,13 +37,6 @@ export default function ChatWindow(props: {
       setHasNewMessages(true);
     }
   }, [messages]);
-
-  useEffect(() => {
-    if (newMessage && newMessage.chatId === currentChat?._id) {
-      setMessages((prev) => [...prev, newMessage]);
-    }
-  }, [newMessage]);
-
   
   useEffect(() => {
     if (!currentChat?._id) return;
@@ -62,7 +54,7 @@ export default function ChatWindow(props: {
     
     socket.emit("join_room", currentChat._id);
 
-    // socket.on("new_message", (m) => setMessages(prev=>[...prev,m]))
+    socket.on("new_message", (m) => setMessages(prev=>[...prev,m.message]))
   },[currentChat?._id])
 
   const sendMessage = () => {

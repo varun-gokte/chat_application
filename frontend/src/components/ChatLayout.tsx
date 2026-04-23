@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import ChatWindow from "./ChatWindow";
 import PanelHeader from "./PanelHeader";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Chat } from "../types";
 import { getChats } from "../apis";
 import { socket } from "../socket";
@@ -9,7 +9,8 @@ import { socket } from "../socket";
 export default function ChatLayout({username, userId, firstName}: {username:string, userId:string, firstName: string}) {
   const [chatsList, setChatsList] = useState<Chat[]>([]);
   const [currentChat, setCurrentChat] = useState<Chat>();  
-
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  
   useEffect(()=>{
     getChats().then(res=>{
       if (res.status==200)
@@ -17,7 +18,11 @@ export default function ChatLayout({username, userId, firstName}: {username:stri
     })
   },[]);
 
-  
+  const currentChatRef = useRef(currentChat);
+    useEffect(() => {
+      currentChatRef.current = currentChat;
+  }, [currentChat]);
+
   useEffect(()=> {
     socket.auth = { userId: userId}
     socket.connect();
@@ -25,7 +30,22 @@ export default function ChatLayout({username, userId, firstName}: {username:stri
     socket.on("disconnect",() => console.log('socket disconnected', socket.id));
     
     socket.on("new_chat", (c) => setChatsList(prev=>[...prev,c]));
-    socket.on("new_message", (m) => console.log("new message", m));
+    socket.on("new_message", ({ chatId, message }) =>{
+      setChatsList(prev =>
+        prev.map(chat =>
+          chat._id === chatId
+            ? { ...chat, lastMessage: message }
+            : chat
+        )
+      );
+      console.log(chatId, currentChatRef.current?._id,chatId !== currentChatRef.current?._id)
+      if (chatId !== currentChatRef.current?._id) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [chatId]: (prev[chatId] ?? 0) + 1,
+        }));
+      }
+    });
 
     return () => {
       socket.off("connect");
@@ -47,11 +67,15 @@ export default function ChatLayout({username, userId, firstName}: {username:stri
             const content = chat.lastMessage?.content;
             const timestamp = chat.lastMessage?.timestamp;
             const isSelected = currentChat?._id === chat._id;
+            const unread = unreadCounts[chat._id] ?? 0;
             // const unread = currentChat?.lastMessage.
             return (
               <motion.div
                 key={index}
-                onClick={() => setCurrentChat(chat)}
+                onClick={() => {
+                  setCurrentChat(chat); 
+                  setUnreadCounts(prev => ({ ...prev, [chat._id]: 0 }));
+                }}
                 whileHover={{
                   scale: 1.03,
                   backgroundColor: "rgba(255,255,255,0.35)",
@@ -62,12 +86,17 @@ export default function ChatLayout({username, userId, firstName}: {username:stri
                 `}
               >
                 {/* Name */}
-                <div className="font-semibold text-lg">
-                  {otherUser.firstName || otherUser.lastName
-                    ? `${otherUser.firstName ?? ""} ${otherUser.lastName ?? ""}`
-                    : otherUser.username}
+                
+                <div className="flex justify-between items-center">
+                  <div className="font-semibold text-lg">
+                    {otherUser.firstName ? `${otherUser.firstName} ${otherUser.lastName ?? ""}` : otherUser.username}
+                  </div>
+                  {unread > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
                 </div>
-
                 {/* Last message + timestamp */}
                 <div className="flex justify-between text-sm text-white/70">
                   <span className="truncate max-w-[70%]">{content}</span>
