@@ -19,7 +19,7 @@ export const verifyJwt = (req, res, next) => {
 }
 
 export const createJwt = (user) => jwt.sign(
-    {userId: user._id, firstName:user.firstName,  lastname:user.lastName, username:user.username},
+    {userId: user._id, firstName:user.firstName, lastName:user.lastName, username:user.username},
     process.env.JWT_SECRET,
     {expiresIn: "7d"}
   )

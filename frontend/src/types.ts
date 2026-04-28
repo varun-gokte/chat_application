@@ -15,6 +15,7 @@ type Chat = {
     content: string,
     timestamp: string,
     sender: User
+  createdAt: string;
   };
   updatedAt?:string;
 }
@@ -25,12 +26,16 @@ type Message = {
   content: string;
   seenBy: User[];
   createdAt: string;
+  status?: MessageStatus;
 }
+
+type MessageStatus = "sent" | "delivered" | "read";
 
 interface AuthToken extends JwtPayload {
   username?: string;
   userId?: string;
   firstName?:string;
+  lastName?:string;
 }
 
-export { type User, type Chat, type Message, type AuthToken }
+export { type User, type Chat, type Message, type MessageStatus, type AuthToken }

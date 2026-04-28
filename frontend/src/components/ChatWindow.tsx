@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { TextField, IconButton, Paper } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import { motion } from "framer-motion";
 import type { Chat, Message } from "../types";
 import { createMessage, getMessages } from "../apis";
 import { socket } from "../socket";
+import MessageBubble from "./MessageBubble";
 
 export default function ChatWindow(props: {
   currentChat: Chat | undefined;
@@ -16,6 +16,7 @@ export default function ChatWindow(props: {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -37,6 +38,34 @@ export default function ChatWindow(props: {
       setHasNewMessages(true);
     }
   }, [messages]);
+
+  const isInitialLoad = useRef(true);
+
+// Reset on chat change
+useEffect(() => {
+  if (!currentChat?._id) return;
+  isInitialLoad.current = true;
+  getMessages(currentChat._id).then(res => {
+    if (res.status == 200) setMessages(res.data);
+    else setMessages([]);
+  });
+}, [currentChat?._id]);
+
+// Scroll behavior: instant jump on load, smooth scroll for new messages
+useEffect(() => {
+  if (messages.length === 0) return;
+
+  if (isInitialLoad.current) {
+    bottomRef.current?.scrollIntoView({ behavior: "instant" }); // no animation on load
+    isInitialLoad.current = false;
+    setHasNewMessages(false);
+  } else if (isNearBottom()) {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    setHasNewMessages(false);
+  } else {
+    setHasNewMessages(true);
+  }
+}, [messages]);
   
   useEffect(() => {
     if (!currentChat?._id) return;
@@ -59,10 +88,12 @@ export default function ChatWindow(props: {
 
   const sendMessage = () => {
     if (!input.trim() || !currentChat) return;
-
-    createMessage(currentChat._id, input).then(_ => {
-      // if (res.status==200){console.log("messages",messages)
-      //   setMessages(curr=>[...curr,res.data]);}
+    setError(null);   
+    createMessage(currentChat._id, input).then(res => {
+      if (res.status !== 200) {
+        // Handle error
+        setError("Failed to send message");
+      }
     })
     setInput("");
   };
@@ -82,32 +113,8 @@ export default function ChatWindow(props: {
 
   return (
     <div className="w-full h-[calc(100vh-160px)] flex flex-col bg-gray-100 p-4">    
-      {/* Messages List */}
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto space-y-3 p-2 relative"
-      >
-        {messages.map((msg, i) => {
-          const isMe = msg.senderId === userId;
-
-          return (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className={`max-w-xs p-3 rounded-2xl shadow-md text-white text-sm ${
-                isMe ? "bg-[#3F51B5] ml-auto" : "bg-[#37474F]"
-              }`}
-            >
-              <div>{msg.content}</div>
-              <div className="text-[10px] text-gray-200 mt-1 text-right">
-                {new Date(msg.createdAt).toLocaleTimeString()}
-              </div>
-            </motion.div>
-          );
-        })}
+      <div ref={containerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto space-y-3 p-2 relative">
+        {messages.map((msg, i) => <MessageBubble key={i} message={msg} currentUserId={userId!} />)}
         <div ref={bottomRef} />
       </div>
       {hasNewMessages && (
@@ -123,7 +130,11 @@ export default function ChatWindow(props: {
           </button>
         </div>
       )}
-
+      {error && (
+        <div className="text-red-500 border border-red-500 text-sm px-4 py-2 rounded mx-auto mt-4">
+          {error}
+        </div>
+      )}
       {/* Input */}
       <Paper className="flex items-center p-2 gap-2" elevation={3}>
         <TextField

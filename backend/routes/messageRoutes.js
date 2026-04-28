@@ -11,7 +11,11 @@ router.get("/", async (req,res) => {
   try {
     const chatId = req.query.chatId;
     const id = new mongoose.Types.ObjectId(chatId);
-    const messages = await Message.find({chatId:id}).sort({createdAt: 1}).limit(30)
+    const messages = (
+  await Message.find({ chatId: id })
+    .sort({ createdAt: -1 })
+    .limit(30)
+).reverse()
     return res.status(200).json({messages})
   }
   catch(err){
@@ -28,6 +32,7 @@ router.post("/new", async (req,res) => {
       senderId: userId,
       chatId,
       content,
+      status: "sent",
       seenBy: [userId]
     });
   

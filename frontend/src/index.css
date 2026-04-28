@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+.bubble-me::after {
+  content: '';
+  position: absolute;
+  bottom: 0; right: -7px;
+  width: 0; height: 0;
+  border-left: 8px solid #3F51B5;
+  border-bottom: 8px solid transparent;
+}
+
+.bubble-them::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: -7px;
+  width: 0; height: 0;
+  border-right: 8px solid #37474F;
+  border-bottom: 8px solid transparent;
+}

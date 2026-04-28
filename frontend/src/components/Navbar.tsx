@@ -1,10 +1,9 @@
 import { AppBar, Box, Button, Toolbar, Typography } from "@mui/material";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import type { AuthToken } from "../types";
+import ProfileAvatar from "./ProfileAvatar";
 
 export default function Navbar({token, setToken}:{token:AuthToken | null, setToken: React.Dispatch<React.SetStateAction<AuthToken | null>>}){
-  const navigate = useNavigate();
-
   return (
     <Box sx={{ flexGrow: 1 }}>
       <AppBar
@@ -39,25 +38,7 @@ export default function Navbar({token, setToken}:{token:AuthToken | null, setTok
             About this app
           </Typography>
           {token
-            ?<Button
-              variant="outlined"
-              sx={{
-                textTransform: "none",
-                borderColor: "white",
-                color: "white",
-                "&:hover": {
-                  backgroundColor: "rgba(255,255,255,0.15)",
-                  borderColor: "white",
-                },
-              }}
-              onClick={()=>{
-                localStorage.removeItem("chat-token");
-                setToken(null);
-                navigate("/login");
-              }}
-            >
-              <Link to="/login">Logout</Link>
-            </Button>
+            ?<ProfileAvatar user={{firstName: token.firstName, lastName: token.lastName, username: token.username || ""}} setToken={setToken} />
             :<>
               <Button
                 sx={{
