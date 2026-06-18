@@ -21,6 +21,7 @@ type Chat = {
 }
 
 type Message = {
+  _id: string;
   senderId: string;
   chatId: string;
   content: string;

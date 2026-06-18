@@ -26,10 +26,15 @@ router.get("/", async (req,res) => {
 
 router.post("/new", async (req,res) => {
   try{
+    const io = getIO()
     const {userId} = req.user;
     const {chatId, content} = req.body;
+    
+    const chat = await Chat.findById(chatId).populate("participants");
+    const recepientId = chat.participants.find((participant) => participant._id.toString() !== userId)._id.toString();
     const newMessage = await Message.create({
       senderId: userId,
+      receiverId: recepientId,
       chatId,
       content,
       status: "sent",
@@ -45,11 +50,18 @@ router.post("/new", async (req,res) => {
       }
     })
     
-    const chat = await Chat.findById(chatId).populate("participants");
-    const io = getIO()
-    
     chat.participants.forEach((participant) => {
-        io.to(participant._id.toString()).emit("new_message", { chatId, message: newMessage, sender: userId });
+      const participantId = participant._id.toString();
+        if (participantId === userId) 
+          io.to(participantId).emit("new_message", { chatId, message: newMessage, sender: userId });
+
+        else{
+          const recipientSockets = io.sockets.adapter.rooms.get(participantId);
+          const isOnline = recipientSockets?.size > 0;
+          console.log(`User ${participantId} is ${isOnline ? "online" : "offline"}`); 
+          if (isOnline)
+            io.to(participantId).emit("new_message", { chatId, message: newMessage, sender: userId });
+        }      
     });
     return res.status(200).json({message:newMessage});
   }

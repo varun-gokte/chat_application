@@ -1,4 +1,5 @@
 import { Server } from "socket.io";
+import { Message } from "./schemas/Message.js ";
 
 let io;
 
@@ -10,22 +11,37 @@ export const initSocket = (server) => {
     }
   })
 
-  io.on('connect',(socket)=>{
+  io.on('connect', async (socket)=>{
     console.log('socket connected', socket.id)
 
     const userId = socket.handshake.auth.userId;
-    if (userId)
-      socket.join(userId);
+    if (userId) socket.join(userId);
 
-    socket.on("join_room", (chatId) => {
-      if (!chatId){
-        console.log("join chat called without chatId")
-        return
+    const pendingMessages = await Message.find({receiverId:userId, status: "sent"});
+    if (pendingMessages.length > 0) {
+      // update all to delivered in one shot
+      const pendingIds = pendingMessages.map(m => m._id);
+      await Message.updateMany({ _id: { $in: pendingIds } }, { status: 'delivered' });
+
+      // group by sender so we can notify each sender
+      const grouped = pendingMessages.reduce((acc, msg) => {
+        const senderId = msg.senderId.toString();
+        if (!acc[senderId]) acc[senderId] = [];
+        acc[senderId].push(msg._id);
+        return acc;
+      }, {});
+
+      // notify each sender their messages were delivered
+      for (const [senderId, messageIds] of Object.entries(grouped)) {
+        io.to(senderId).emit("message_status_update", { messageIds, status: 'delivered' });
       }
-      socket.join(chatId)
-      console.log(`Socket ${socket.id} joined the chat ${chatId}`)
+    }
+  
+    socket.on("message_delivered", async ({ messageId, senderId }) => {
+      console.log("Delivery noted")
+      await Message.findByIdAndUpdate(messageId, { status: 'delivered' });
+      io.to(senderId).emit("message_status_update", { messageIds:[messageId], status: 'delivered' });
     })
-
     socket.on('disconnect', ()=>{
       console.log('socket disconnected')
     })

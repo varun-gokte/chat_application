@@ -2,16 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { TextField, IconButton, Paper } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import type { Chat, Message } from "../types";
+import type { Chat, Message, MessageStatus } from "../types";
 import { createMessage, getMessages } from "../apis";
-import { socket } from "../socket";
 import MessageBubble from "./MessageBubble";
 
 export default function ChatWindow(props: {
   currentChat: Chat | undefined;
   userId: string | undefined;
+  newMessage: Message | null;
+  updatedStatuses: Record<string, string>;
 }) {
-  const { currentChat, userId } = props;
+  const { currentChat, userId, newMessage, updatedStatuses } = props;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -41,31 +42,39 @@ export default function ChatWindow(props: {
 
   const isInitialLoad = useRef(true);
 
-// Reset on chat change
-useEffect(() => {
-  if (!currentChat?._id) return;
-  isInitialLoad.current = true;
-  getMessages(currentChat._id).then(res => {
-    if (res.status == 200) setMessages(res.data);
-    else setMessages([]);
-  });
-}, [currentChat?._id]);
+  // Reset on chat change
+  useEffect(() => {
+    if (!currentChat?._id) return;
+    isInitialLoad.current = true;
+    getMessages(currentChat._id).then(res => {
+      if (res.status == 200) setMessages(res.data);
+      else setMessages([]);
+    });
+  }, [currentChat?._id]);
 
-// Scroll behavior: instant jump on load, smooth scroll for new messages
-useEffect(() => {
-  if (messages.length === 0) return;
+  // Handle new message
+  useEffect(() => {
+    if (!currentChat?._id) return;
+    if (newMessage && newMessage.chatId === currentChat._id) {
+      setMessages(prev => [...prev, newMessage]);
+    }
+  },[newMessage, currentChat?._id]);
 
-  if (isInitialLoad.current) {
-    bottomRef.current?.scrollIntoView({ behavior: "instant" }); // no animation on load
-    isInitialLoad.current = false;
-    setHasNewMessages(false);
-  } else if (isNearBottom()) {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    setHasNewMessages(false);
-  } else {
-    setHasNewMessages(true);
-  }
-}, [messages]);
+  // Scroll behavior: instant jump on load, smooth scroll for new messages
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    if (isInitialLoad.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" }); // no animation on load
+      isInitialLoad.current = false;
+      setHasNewMessages(false);
+    } else if (isNearBottom()) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      setHasNewMessages(false);
+    } else {
+      setHasNewMessages(true);
+    }
+  }, [messages]);
   
   useEffect(() => {
     if (!currentChat?._id) return;
@@ -80,11 +89,16 @@ useEffect(() => {
 
   useEffect(()=>{
     if (!currentChat?._id) return;
-    
-    socket.emit("join_room", currentChat._id);
-
-    socket.on("new_message", (m) => setMessages(prev=>[...prev,m.message]))
-  },[currentChat?._id])
+    if (Object.keys(updatedStatuses).length === 0) return;
+    setMessages(prev => {
+      const updated = prev.map(msg => {
+        const status = updatedStatuses[msg._id.toString()] as MessageStatus;
+        return status   ? { ...msg, status } : msg;
+      })
+      console.log("updated",updated)
+      return [...updated];
+    })
+  },[updatedStatuses, currentChat?._id])
 
   const sendMessage = () => {
     if (!input.trim() || !currentChat) return;

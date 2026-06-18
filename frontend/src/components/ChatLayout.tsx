@@ -10,6 +10,8 @@ export default function ChatLayout({username, userId}: {username:string, userId:
   const [chatsList, setChatsList] = useState<Chat[]>([]);
   const [currentChat, setCurrentChat] = useState<Chat>();  
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [newMessage, setNewMessage] = useState(null);
+  const [updatedStatuses, setUpdatedStatuses] = useState<Record<string, string>>({});
   
   useEffect(()=>{
     getChats().then(res=>{
@@ -30,7 +32,11 @@ export default function ChatLayout({username, userId}: {username:string, userId:
     socket.on("disconnect",() => console.log('socket disconnected', socket.id));
     
     socket.on("new_chat", (c) => setChatsList(prev=>[...prev,c]));
-    socket.on("new_message", ({ chatId, message }) =>{
+    socket.on("new_message", (data) => {
+      const { chatId, message } = data;
+      if (userId == message.receiverId)
+        socket.emit("message_delivered", {messageId: message._id, senderId: message.senderId});
+
       setChatsList(prev =>
         prev.map(chat =>
           chat._id === chatId
@@ -38,6 +44,7 @@ export default function ChatLayout({username, userId}: {username:string, userId:
             : chat
         )
       );
+      setNewMessage(message);
       if (chatId !== currentChatRef.current?._id) {
         setUnreadCounts(prev => ({
           ...prev,
@@ -45,7 +52,12 @@ export default function ChatLayout({username, userId}: {username:string, userId:
         }));
       }
     });
-
+    socket.on("message_status_update", ({ messageIds, status }) => {
+      setUpdatedStatuses(prev => ({
+        ...prev,
+        ...messageIds.reduce((acc: any, id: any) => ({ ...acc, [id]: status }), {})
+      }));
+    })
     return () => {
       socket.off("connect");
       socket.off("disconnect");
@@ -153,7 +165,7 @@ export default function ChatLayout({username, userId}: {username:string, userId:
         <div className="flex-1 flex justify-center items-center py-6 overflow-hidden bg-gray-50">
           {currentChat && (
             <div className="w-full h-full">
-              <ChatWindow currentChat={currentChat} userId={userId} />
+              <ChatWindow currentChat={currentChat} userId={userId} newMessage={newMessage} updatedStatuses={updatedStatuses} />
             </div>
           )}
         </div>
