@@ -4,6 +4,7 @@ import InboxIcon from '@mui/icons-material/Inbox';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { motion } from 'framer-motion';
 import type { Message, MessageStatus } from '../types';
+import { useEffect, useRef } from 'react';
 
 const statusConfig = {
   sent:      { Icon: AccessTimeIcon, color: 'rgba(255,255,255,0.35)', label: 'Sent' },
@@ -20,8 +21,39 @@ const MessageStatus = ({ status }: { status: MessageStatus }) => {
   );
 };
 
-const MessageBubble = ({ message, currentUserId }: { message: Message; currentUserId: string }) => {
+const MessageBubble = ({
+  message,
+  currentUserId,
+  onRead,
+}: {
+  message: Message;
+  currentUserId: string;
+  onRead: (id: string) => void;
+}) => {
   const isMe = message.senderId === currentUserId;
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    // Only observe incoming, unread messages
+    if (isMe || message.status === 'read') return;
+
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          console.log(`Message ${message._id} is visible, marking as read`);
+          onRead(message._id);
+          observer.disconnect(); // one-shot
+        }
+      },
+      { threshold: 0.5 } // at least half the bubble must be visible
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isMe, message._id, message.status, onRead]);
 
   return (
     <motion.div
@@ -29,6 +61,7 @@ const MessageBubble = ({ message, currentUserId }: { message: Message; currentUs
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}
+      ref={ref}
     >
       <div
         style={{

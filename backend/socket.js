@@ -38,10 +38,17 @@ export const initSocket = (server) => {
     }
   
     socket.on("message_delivered", async ({ messageId, senderId }) => {
-      console.log("Delivery noted")
       await Message.findByIdAndUpdate(messageId, { status: 'delivered' });
+
       io.to(senderId).emit("message_status_update", { messageIds:[messageId], status: 'delivered' });
     })
+
+    socket.on("mark_read", async ({messageIds, senderId}) => {
+      await Message.updateMany({ _id: { $in: messageIds } }, { status: 'read' });
+      console.log(`Messages ${messageIds} marked as read to sender ${senderId}`);
+      io.to(senderId).emit("message_status_update", { messageIds, status: 'read' });
+    })
+
     socket.on('disconnect', ()=>{
       console.log('socket disconnected')
     })
