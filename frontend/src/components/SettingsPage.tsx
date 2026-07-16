@@ -15,13 +15,11 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import type { AuthToken } from "../types";
 import { changeUserInfo } from "../apis";
 
 const PRIMARY = "#3F51B5";
 
-// A single boxed section used for each group of settings (profile, username, password, danger zone)
 function SettingsSection({ icon, title, description, children }: { icon: React.ReactNode; title: string; description?: string; children: React.ReactNode }) {
   return (
     <Paper

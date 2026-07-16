@@ -6,8 +6,7 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import DevicesIcon from "@mui/icons-material/Devices";
 import GitHubIcon from "@mui/icons-material/GitHub";
 
-// Replace with your actual repo URL
-const GITHUB_URL = "https://github.com/your-username/your-repo";
+const GITHUB_URL = "https://github.com/varun-gokte/chat_application";
 
 const FEATURES = [
   {
