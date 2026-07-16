@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import ChatWindow from "./ChatWindow";
 import PanelHeader from "./PanelHeader";
 import { useEffect, useRef, useState } from "react";
@@ -6,120 +6,175 @@ import type { Chat } from "../types";
 import { getChats } from "../apis";
 import { socket } from "../socket";
 
-export default function ChatLayout({username, userId}: {username:string, userId:string}) {
+const AVATAR_GRADIENTS = [
+  "from-indigo-500 to-blue-500",
+  "from-violet-500 to-indigo-500",
+  "from-blue-500 to-cyan-500",
+  "from-fuchsia-500 to-indigo-500",
+  "from-indigo-500 to-purple-500",
+];
+function gradientFor(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+}
+function initialsFor(firstName?: string, lastName?: string, username?: string) {
+  if (firstName) return `${firstName[0]}${lastName?.[0] ?? ""}`.toUpperCase();
+  return (username ?? "?").slice(0, 2).toUpperCase();
+}
+
+function BackIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+export default function ChatLayout({ username, userId }: { username: string; userId: string }) {
   const [chatsList, setChatsList] = useState<Chat[]>([]);
-  const [currentChat, setCurrentChat] = useState<Chat>();  
+  const [currentChat, setCurrentChat] = useState<Chat>();
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [newMessage, setNewMessage] = useState(null);
   const [updatedStatuses, setUpdatedStatuses] = useState<Record<string, string>>({});
-  
-  useEffect(()=>{
-    getChats().then(res=>{
-      if (res.status==200)
-        setChatsList(res.data);
-    })
-  },[]);
+
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+
+  useEffect(() => {
+    getChats().then((res) => {
+      if (res.status == 200) setChatsList(res.data);
+    });
+  }, []);
 
   const currentChatRef = useRef(currentChat);
-    useEffect(() => {
-      currentChatRef.current = currentChat;
+  useEffect(() => {
+    currentChatRef.current = currentChat;
   }, [currentChat]);
 
-  useEffect(()=> {
-    socket.auth = { userId: userId}
+  useEffect(() => {
+    socket.auth = { userId: userId };
     socket.connect();
-    socket.on("connect", () => console.log('socket connected',socket.id));
-    socket.on("disconnect",() => console.log('socket disconnected', socket.id));
-    
-    socket.on("new_chat", (c) => setChatsList(prev=>[...prev,c]));
+    socket.on("connect", () => console.log("socket connected", socket.id));
+    socket.on("disconnect", () => console.log("socket disconnected", socket.id));
+
+    socket.on("new_chat", (c) => setChatsList((prev) => [...prev, c]));
     socket.on("new_message", (data) => {
       const { chatId, message } = data;
       if (userId == message.receiverId)
-        socket.emit("message_delivered", {messageId: message._id, senderId: message.senderId});
-
-      setChatsList(prev =>
-        prev.map(chat =>
-          chat._id === chatId
-            ? { ...chat, lastMessage: message }
-            : chat
-        )
+        socket.emit("message_delivered", { messageId: message._id, senderId: message.senderId });
+      setChatsList((prev) =>
+        prev.map((chat) => (chat._id === chatId ? { ...chat, lastMessage: message } : chat))
       );
       setNewMessage(message);
       if (chatId !== currentChatRef.current?._id) {
-        setUnreadCounts(prev => ({
+        setUnreadCounts((prev) => ({
           ...prev,
           [chatId]: (prev[chatId] ?? 0) + 1,
         }));
       }
     });
     socket.on("message_status_update", ({ messageIds, status }) => {
-      setUpdatedStatuses(prev => ({
+      setUpdatedStatuses((prev) => ({
         ...prev,
-        ...messageIds.reduce((acc: any, id: any) => ({ ...acc, [id]: status }), {})
+        ...messageIds.reduce((acc: any, id: any) => ({ ...acc, [id]: status }), {}),
       }));
-    })
+    });
     return () => {
       socket.off("connect");
       socket.off("disconnect");
       socket.disconnect();
-    }
-  },[]);
+    };
+  }, []);
+
+  const selectChat = (chat: Chat) => {
+    setCurrentChat(chat);
+    setUnreadCounts((prev) => ({ ...prev, [chat._id]: 0 }));
+    setMobileView("chat");
+  };
+
+  const otherParticipant = (chat?: Chat) => chat?.participants?.find((p) => p.username !== username);
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-gray-100">
-      <aside className=" w-1/4 h-full p-3 flex flex-col gap-3 backdrop-blur-lg bg-[rgba(18,31,98,0.55)] border-r border-[rgba(255,255,255,0.08)] shadow-2xl shadow-lg">
-       <PanelHeader setCurrentChat={setCurrentChat} />
-        <div className="flex flex-col gap-2">
-          {chatsList.map((chat,index) => {
-            if (!chat ||Object.keys(chat).length==0)
-              return <div></div>;
-            const otherUser = chat.participants?.filter(p=>p.username!=username)[0];
+    <div className="flex h-[calc(100vh-64px)] bg-[#F7F8FC] overflow-hidden">
+      <aside
+        className={`
+          ${mobileView === "list" ? "flex" : "hidden"} md:flex
+          w-full md:w-[340px] lg:w-[380px] shrink-0 h-full flex-col
+          bg-gradient-to-b from-[#3F51B5] to-[#2E3B8F]
+          border-r border-white/10 shadow-xl
+        `}
+      >
+        <div className="p-4 pb-2 shrink-0">
+          <PanelHeader setCurrentChat={setCurrentChat} />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 pb-3 flex flex-col gap-1.5">
+          {chatsList.length === 0 && (
+            <div className="text-white/60 text-sm text-center mt-10 px-4">
+              No conversations yet. Start one with the + button above.
+            </div>
+          )}
+
+          {chatsList.map((chat) => {
+            if (!chat || Object.keys(chat).length == 0) return null;
+            const otherUser = otherParticipant(chat);
+            if (!otherUser) return null;
             const content = chat.lastMessage?.content;
             const timestamp = chat.lastMessage?.timestamp || chat.lastMessage?.createdAt;
             const isSelected = currentChat?._id === chat._id;
             const unread = unreadCounts[chat._id] ?? 0;
-            
+            const name = otherUser.firstName ? `${otherUser.firstName} ${otherUser.lastName ?? ""}` : otherUser.username;
+
             return (
               <motion.div
-                key={index}
-                onClick={() => {
-                  setCurrentChat(chat); 
-                  setUnreadCounts(prev => ({ ...prev, [chat._id]: 0 }));
-                }}
-                whileHover={{
-                  scale: 1.03,
-                  backgroundColor: "rgba(255,255,255,0.35)",
-                }}
+                key={chat._id}
+                onClick={() => selectChat(chat)}
+                whileHover={{ x: isSelected ? 0 : 2 }}
                 transition={{ duration: 0.12 }}
-                className={`cursor-pointer rounded-xl px-3 py-2 text-white/90 border border-white/20 flex flex-col gap-1 transition-all duration-150
-                  ${isSelected?"bg-red-400/70 text-black shadow-[0_0_12px_rgba(255,255,255,0. 8)] border-white":"bg-white/15 text-white/90"}
+                className={`
+                  relative cursor-pointer rounded-xl pl-3 pr-3 py-2.5 flex items-center gap-3
+                  transition-colors duration-150
+                  ${isSelected ? "bg-white shadow-md" : "hover:bg-white/10"}
                 `}
               >
-              <div className="flex justify-between items-center">
-                  <div className="font-semibold text-lg">
-                    {otherUser.firstName ? `${otherUser.firstName} ${otherUser.lastName ?? ""}` : otherUser.username}
-                  </div>
-                  {unread > 0 && (
-                    <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {unread > 99 ? "99+" : unread}
-                    </span>
-                  )}
+                {isSelected && (
+                  <span className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-[#3F51B5]" />
+                )}
+                <div
+                  className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm bg-gradient-to-br ${gradientFor(
+                    otherUser.username || otherUser.firstName || "?"
+                  )}`}
+                >
+                  {initialsFor(otherUser.firstName, otherUser.lastName, otherUser.username)}
                 </div>
-                {/* Last message + timestamp */}
-                <div className="flex justify-between text-sm text-white/70">
-                  <span className="truncate max-w-[70%]">{content}</span>
-                  <span className="whitespace-nowrap">
-                    {timestamp && (() => {
-                      const date = new Date(timestamp);
-                      const today = new Date();
-                      const isToday = date.toDateString() === today.toDateString();
-                      if (isToday) {
-                        return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                      } else {
-                        return date.toLocaleString([], { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
-                      }
-                    })()}
-                  </span>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-baseline gap-2">
+                    <span className={`font-semibold text-[15px] truncate ${isSelected ? "text-gray-900" : "text-white"}`}>
+                      {name}
+                    </span>
+                    <span className={`text-[11px] whitespace-nowrap ${isSelected ? "text-gray-400" : "text-white/60"}`}>
+                      {timestamp &&
+                        (() => {
+                          const date = new Date(timestamp);
+                          const today = new Date();
+                          const isToday = date.toDateString() === today.toDateString();
+                          return isToday
+                            ? date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                            : date.toLocaleString("en-GB", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+                        })()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center gap-2 mt-0.5">
+                    <span className={`text-[13px] truncate ${isSelected ? "text-gray-500" : "text-white/70"}`}>
+                      {content ?? "No messages yet"}
+                    </span>
+                    {unread > 0 && (
+                      <span className="shrink-0 bg-red-500 text-white text-[11px] font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center">
+                        {unread > 99 ? "99+" : unread}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             );
@@ -127,51 +182,77 @@ export default function ChatLayout({username, userId}: {username:string, userId:
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Wrapper under navbar */}
-        <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Chat Header */}
-          <div className="p-2 border-b bg-white shadow-sm shrink-0">
-            {(() => {
-            const other = currentChat?.participants.find(p => p.username !== username);
+      <div className={`${mobileView === "chat" ? "flex" : "hidden"} md:flex flex-1 flex-col overflow-hidden`}>
+        <div className="px-4 py-3 border-b border-gray-200 bg-white shadow-sm shrink-0 flex items-center gap-3">
+          <button
+            onClick={() => setMobileView("list")}
+            className="md:hidden shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+            aria-label="Back to conversations"
+          >
+            <BackIcon />
+          </button>
 
+          {(() => {
+            const other = otherParticipant(currentChat);
             if (!other) {
               return (
-                <div className="flex flex-col text-center">
-                  <div className="text-2xl font-semibold text-gray-700">
-                    Select a Conversation
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    Choose a chat to start messaging or create a new chat
-                  </div>
+                <div className="flex flex-col">
+                  <div className="text-xl font-semibold text-gray-700">Select a conversation</div>
+                  <div className="text-sm text-gray-500">Choose a chat to start messaging or create a new one</div>
                 </div>
               );
             }
-
             return (
-              <div className="flex flex-col">
-                <div className="text-2xl font-semibold text-gray-800">
-                  {other.firstName} {other.lastName}
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`shrink-0 w-9 h-9 rounded-full hidden sm:flex items-center justify-center text-white font-semibold text-xs bg-gradient-to-br ${gradientFor(
+                    other.username || other.firstName || "?"
+                  )}`}
+                >
+                  {initialsFor(other.firstName, other.lastName, other.username)}
                 </div>
-                <div className="text-sm text-gray-500 mt-1">
-                  @{other.username}
+                <div className="min-w-0">
+                  <div className="text-lg font-semibold text-gray-800 truncate">
+                    {other.firstName} {other.lastName}
+                  </div>
+                  <div className="text-xs text-gray-500">@{other.username}</div>
                 </div>
               </div>
             );
           })()}
         </div>
 
-        {/* ChatBody (contains ChatWindow) */}
-        <div className="flex-1 flex justify-center items-center py-6 overflow-hidden bg-gray-50">
-          {currentChat && (
-            <div className="w-full h-full">
-              <ChatWindow currentChat={currentChat} userId={userId} newMessage={newMessage} updatedStatuses={updatedStatuses} />
-            </div>
-          )}
+        <div className="flex-1 flex justify-center items-center overflow-hidden bg-[#F7F8FC]">
+          <AnimatePresence mode="wait">
+            {currentChat ? (
+              <motion.div
+                key={currentChat._id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="w-full h-full"
+              >
+                <ChatWindow
+                  currentChat={currentChat}
+                  userId={userId}
+                  newMessage={newMessage}
+                  updatedStatuses={updatedStatuses}
+                />
+              </motion.div>
+            ) : (
+              <div className="flex flex-col items-center gap-3 text-gray-400 px-6 text-center">
+                <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center text-[#3F51B5]">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                  </svg>
+                </div>
+                <div className="text-sm">Pick a conversation on the left to start chatting</div>
+              </div>
+            )}
+          </AnimatePresence>
         </div>
-
       </div>
     </div>
-  </div>
   );
 }

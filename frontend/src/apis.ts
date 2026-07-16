@@ -117,14 +117,33 @@ const createMessage = async ( chatId: string, content: string) => {
   }
 };
 
-const getMessages = async (chatId:string) => {
+const getMessages = async (chatId:string, before?:string) => {
   try{
     const response = await axios.get(`${URL}/messages`, {
-      params: {chatId },
+      params: { chatId, before },
       headers: { authorization: `Bearer ${localStorage.getItem("chat-token")}` },
     });
     if (response.status==200)
-      return {status: 200, data:response.data.messages};
+      return {status: 200, data:response.data};
+    else
+      return {status: response.status, data:[]};
+  }
+  catch (err) {
+    const error = err as AxiosError;
+    if (error.status) 
+      return {status: error.status, data:[]};
+    return {status: 500, data:[]};
+  }
+};
+
+const changeUserInfo = async (data: { firstName?: string; lastName?: string, currentPassword?: string, newPassword?: string }) => {
+  try {
+    const response = await axios.put(`${URL}/users/me`, 
+      data, 
+      { headers: { authorization: `Bearer ${localStorage.getItem("chat-token")}` } }
+    );
+    if (response.status==200)
+      return {status: 200, data:response.data};
     else
       return {status: response.status, data:[]};
   }
@@ -140,5 +159,6 @@ export {
   signupUser, loginUser, 
   searchUsers, 
   createChat, getChats,
-  createMessage, getMessages
+  createMessage, getMessages,
+  changeUserInfo,
 }

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SettingsIcon from '@mui/icons-material/Settings';
-import GroupIcon from '@mui/icons-material/Group';
 import LogoutIcon from '@mui/icons-material/Logout';
 import type { AuthToken, User } from "../types";
 import { useNavigate } from "react-router-dom";
@@ -40,13 +39,11 @@ export default function ProfileAvatar({ user, setToken }: {user: User, setToken:
     }, []);
 
     const menuItems = [
-    { label: "Settings", Icon: SettingsIcon, onClick: () => console.log("Settings") },
-    { label: "Friends", Icon: GroupIcon,    onClick: () => console.log("Friends") },
+    { label: "Settings", Icon: SettingsIcon, onClick: () => navigate("/settings") },
     ];
 
     return (
     <div ref={wrapRef} className="relative">
-        {/* Avatar button */}
         <button
         onClick={() => setOpen((v) => !v)}
         className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium

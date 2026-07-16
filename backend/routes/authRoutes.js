@@ -15,8 +15,7 @@ router.post("/signup",async(req,res)=>{
     if (userExists)
       return res.sendStatus(400);
     
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(password, 10);
     
     const user = await User.create({firstName, lastName, username, password:hashedPassword});
     const token = createJwt(user);

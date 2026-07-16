@@ -6,6 +6,7 @@ import HomePage from "./HomePage"
 import {jwtDecode} from "jwt-decode";
 import { useEffect, useState } from "react"
 import type { AuthToken } from "./types"
+import SettingsPage from "./components/SettingsPage";
 
 function App() {
   const [token, setToken] = useState< AuthToken | null>(null);
@@ -38,7 +39,9 @@ function App() {
       <Routes>
         <Route path="/signup" element={<SignupPage setToken={setToken}/>} />
         <Route path="/login" element={<LoginPage setToken={setToken}/>} />
-        <Route path="/" element={<HomePage token={token}/>} /> 
+        <Route path="/" element={<HomePage token={token}/>} />
+        <Route path="/settings" element={<SettingsPage token={token} setToken={setToken}/>} />
+        <Route path="*" element={<h1>404 Not Found</h1>} />
       </Routes>
     </div>
   )

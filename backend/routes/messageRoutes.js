@@ -9,16 +9,22 @@ const router = express.Router();
 
 router.get("/", async (req,res) => {
   try {
-    const chatId = req.query.chatId;
+      const {chatId, before} = req.query;
     const id = new mongoose.Types.ObjectId(chatId);
-    const messages = (
-  await Message.find({ chatId: id })
-    .sort({ createdAt: -1 })
-    .limit(30)
-).reverse()
-    return res.status(200).json({messages})
-  }
-  catch(err){
+    const LIMIT = 30;
+    const query = { chatId: id};
+
+    if (before) query._id = { $lt: new mongoose.Types.ObjectId(before) };
+
+   const messages = await Message.find(query)
+      .sort({ _id: -1 })
+      .limit(LIMIT + 1)
+      .then(msgs => msgs.reverse());
+   const hasMore = messages.length > LIMIT;
+    if (hasMore) messages.shift();
+
+    return res.status(200).json({ messages, hasMore });
+  } catch (err) {
     console.log(err);
     return res.sendStatus(500);
   }

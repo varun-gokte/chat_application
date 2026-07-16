@@ -7,9 +7,9 @@ import type { Message, MessageStatus } from '../types';
 import { useEffect, useRef } from 'react';
 
 const statusConfig = {
-  sent:      { Icon: AccessTimeIcon, color: 'rgba(255,255,255,0.35)', label: 'Sent' },
-  delivered: { Icon: InboxIcon,      color: 'rgba(255,255,255,0.8)',  label: 'Delivered' },
-  read:      { Icon: VisibilityIcon, color: '#7CEFB8',                label: 'Read' },
+  sent: { Icon: AccessTimeIcon, color: 'rgba(255,255,255,0.55)', label: 'Sent' },
+  delivered: { Icon: InboxIcon, color: 'rgba(255,255,255,0.85)', label: 'Delivered' },
+  read: { Icon: VisibilityIcon, color: '#7CEFB8', label: 'Read' },
 };
 
 const MessageStatus = ({ status }: { status: MessageStatus }) => {
@@ -36,21 +36,17 @@ const MessageBubble = ({
   useEffect(() => {
     // Only observe incoming, unread messages
     if (isMe || message.status === 'read') return;
-
     const el = ref.current;
     if (!el) return;
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          console.log(`Message ${message._id} is visible, marking as read`);
           onRead(message._id);
           observer.disconnect(); // one-shot
         }
       },
       { threshold: 0.5 } // at least half the bubble must be visible
     );
-
     observer.observe(el);
     return () => observer.disconnect();
   }, [isMe, message._id, message.status, onRead]);
@@ -60,28 +56,21 @@ const MessageBubble = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}
       ref={ref}
+      className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
     >
       <div
-        style={{
-          position: 'relative',
-          maxWidth: '72%',
-          padding: '10px 14px',
-          borderRadius: 18,
-          ...(isMe
-            ? { borderBottomRightRadius: 4, background: '#3F51B5' }
-            : { borderBottomLeftRadius:  4, background: '#37474F' }
-          ),
-          color: 'white',
-          fontSize: 14,
-        }}
-        className={isMe ? 'bubble-me' : 'bubble-them'}
+        className={`
+          relative max-w-[72%] px-3.5 py-2.5 text-sm leading-relaxed
+          ${isMe
+            ? 'rounded-2xl rounded-br-md bg-gradient-to-br from-[#3F51B5] to-[#4C5FC7] text-white shadow-md shadow-indigo-900/10'
+            : 'rounded-2xl rounded-bl-md bg-white text-gray-800 border border-gray-100 shadow-sm'
+          }
+        `}
       >
-        <div>{message.content}</div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 }}>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>
+        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        <div className="flex items-center justify-end gap-1 mt-1">
+          <span className={`text-[10px] ${isMe ? 'text-white/60' : 'text-gray-400'}`}>
             {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
           {isMe && <MessageStatus status={message.status ?? 'sent'} />}
