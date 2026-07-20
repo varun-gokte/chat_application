@@ -1,6 +1,6 @@
 import axios, {AxiosError} from "axios";
 
-const URL = "http://localhost:3000/api"
+const URL = "https://chat-application-4an4.onrender.com/api"
 
 const signupUser = async (data: {firstName:string, lastName:string, username:string, password:string}) => {
   try{
