@@ -38,11 +38,14 @@ export default function ChatWindow(props: {
   };
 
   const isInitialLoad = useRef(true);
+  const loadedChatIdRef = useRef<string | null>(null);
+  const lastHandledMsgIdRef = useRef<string | null>(null);
 
   // Reset on chat change
   useEffect(() => {
     if (!currentChat?._id) return;
     isInitialLoad.current = true;
+    loadedChatIdRef.current = null;
     setHasNewMessages(false);
     getMessages(currentChat._id).then((res) => {
       if (res.status === 200) {
@@ -54,15 +57,21 @@ export default function ChatWindow(props: {
       }
       setHasMore(true);
       setLoadingMore(false);
+      loadedChatIdRef.current = currentChat._id;
     });
   }, [currentChat?._id]);
 
   // Handle new message
   useEffect(() => {
     if (!currentChat?._id) return;
-    if (newMessage && newMessage.chatId === currentChat._id) {
-      setMessages((prev) => [...prev, newMessage]);
-    }
+    if (!newMessage || newMessage.chatId !== currentChat._id) return;
+    if (loadedChatIdRef.current !== currentChat._id) return;
+    if (lastHandledMsgIdRef.current === newMessage._id) return;
+
+    lastHandledMsgIdRef.current = newMessage._id;
+    setMessages((prev) =>
+      prev.some((m) => m._id === newMessage._id) ? prev : [...prev, newMessage]
+    );
   }, [newMessage, currentChat?._id]);
 
   // Scroll behavior: instant jump on load, smooth scroll for new messages

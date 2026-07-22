@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Chat } from "../types";
 import { getChats } from "../apis";
 import { socket } from "../socket";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 const AVATAR_GRADIENTS = [
   "from-indigo-500 to-blue-500",
@@ -39,6 +41,7 @@ export default function ChatLayout({ username, userId }: { username: string; use
   const [updatedStatuses, setUpdatedStatuses] = useState<Record<string, string>>({});
 
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     getChats().then((res) => {
@@ -97,19 +100,35 @@ export default function ChatLayout({ username, userId }: { username: string; use
   return (
     <div className="flex h-[calc(100vh-64px)] bg-[#F7F8FC] overflow-hidden">
       <aside
-        className={`
-          ${mobileView === "list" ? "flex" : "hidden"} md:flex
-          w-full md:w-[340px] lg:w-[380px] shrink-0 h-full flex-col
-          bg-gradient-to-b from-[#3F51B5] to-[#2E3B8F]
-          border-r border-white/10 shadow-xl
-        `}
-      >
+  className={`
+    ${mobileView === "list" ? "flex" : "hidden"} md:flex
+    relative w-full shrink-0 h-full flex-col
+    bg-gradient-to-b from-[#3F51B5] to-[#2E3B8F]
+    border-r border-white/10 shadow-xl
+    transition-[width] duration-200 ease-in-out
+    ${collapsed ? "md:w-[84px]" : "md:w-[340px] lg:w-[380px]"}
+  `}
+>
+        {/* Collapse toggle — desktop only */}
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          aria-label={collapsed ? "Expand conversation list" : "Collapse conversation list"}
+          className="
+            hidden md:flex absolute -right-3 top-6 z-10
+            w-6 h-6 rounded-full items-center justify-center
+            bg-white text-[#3F51B5] shadow-md border border-gray-100
+            hover:bg-indigo-50 transition-colors cursor-pointer
+          "
+        >
+          {collapsed ? <ChevronRightIcon sx={{ fontSize: 16 }} /> : <ChevronLeftIcon sx={{ fontSize: 16 }} />}
+        </button>
+
         <div className="p-4 pb-2 shrink-0">
-          <PanelHeader setCurrentChat={setCurrentChat} />
+          <PanelHeader setCurrentChat={setCurrentChat} collapsed={collapsed} />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 pb-3 flex flex-col gap-1.5">
-          {chatsList.length === 0 && (
+        <div className={`flex-1 overflow-y-auto py-3 flex flex-col gap-1.5 ${collapsed ? "px-2 items-center" : "px-3"}`}>
+          {chatsList.length === 0 && !collapsed && (
             <div className="text-white/60 text-sm text-center mt-10 px-4">
               No conversations yet. Start one with the + button above.
             </div>
@@ -125,6 +144,34 @@ export default function ChatLayout({ username, userId }: { username: string; use
             const unread = unreadCounts[chat._id] ?? 0;
             const name = otherUser.firstName ? `${otherUser.firstName} ${otherUser.lastName ?? ""}` : otherUser.username;
 
+            if (collapsed) {
+              return (
+                <motion.div
+                  key={chat._id}
+                  onClick={() => selectChat(chat)}
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ duration: 0.12 }}
+                  className="relative cursor-pointer w-12 h-12 rounded-full flex items-center justify-center shrink-0"
+                  title={name}
+                >
+                  <div
+                    className={`
+                      w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm
+                      bg-gradient-to-br ${gradientFor(otherUser.username || otherUser.firstName || "?")}
+                      ${isSelected ? "ring-2 ring-white ring-offset-2 ring-offset-[#3F51B5]" : ""}
+                    `}
+                  >
+                    {initialsFor(otherUser.firstName, otherUser.lastName, otherUser.username)}
+                  </div>
+                  {unread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center ring-2 ring-[#3F51B5]">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </motion.div>
+              );
+            }
+
             return (
               <motion.div
                 key={chat._id}
@@ -132,7 +179,7 @@ export default function ChatLayout({ username, userId }: { username: string; use
                 whileHover={{ x: isSelected ? 0 : 2 }}
                 transition={{ duration: 0.12 }}
                 className={`
-                  relative cursor-pointer rounded-xl pl-3 pr-3 py-2.5 flex items-center gap-3
+                  relative cursor-pointer rounded-xl pl-3 pr-3 py-2.5 flex items-center gap-3 w-full
                   transition-colors duration-150
                   ${isSelected ? "bg-white shadow-md" : "hover:bg-white/10"}
                 `}

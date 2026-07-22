@@ -42,7 +42,11 @@ const inputSx = {
   "& .MuiInputLabel-root.Mui-focused": { color: "#3F51B5" },
 };
 
-export default function PanelHeader(props: { setCurrentChat: React.Dispatch<React.SetStateAction<Chat | undefined>> }) {
+export default function PanelHeader(props: {
+  setCurrentChat: React.Dispatch<React.SetStateAction<Chat | undefined>>;
+  collapsed?: boolean;
+}) {
+  const { collapsed = false } = props;
   const [open, setOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchText, setSearchText] = useState("");
@@ -87,8 +91,8 @@ export default function PanelHeader(props: { setCurrentChat: React.Dispatch<Reac
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h2 className="text-white font-semibold text-sm tracking-wide">Your Conversations</h2>
+      <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+        {!collapsed && <h2 className="text-white font-semibold text-sm tracking-wide">Your Conversations</h2>}
         <Tooltip title="Add a conversation" arrow>
           <button
             onClick={() => setOpen(true)}
@@ -119,7 +123,6 @@ export default function PanelHeader(props: { setCurrentChat: React.Dispatch<Reac
             overflow: "hidden",
           }}
         >
-          {/* Header */}
           <div className="flex items-center gap-3 px-6 pt-6 pb-5">
             <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-50 text-[#3F51B5] shrink-0">
               <PersonAddAlt1Icon fontSize="small" />
