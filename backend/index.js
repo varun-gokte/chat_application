@@ -20,6 +20,10 @@ app.use(express.json());
 
 await connectDB();
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 app.use("/api/user", authRouter)
 
 app.use("/api/users", verifyJwt, usersRouter)
