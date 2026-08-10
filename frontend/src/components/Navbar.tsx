@@ -56,6 +56,13 @@ export default function Navbar({ token, setToken }: { token: AuthToken | null; s
                     backgroundColor: "rgba(255,255,255,0.85)",
                   },
                 }}
+                onClick={() => {
+                  (window as any).goatcounter?.count({
+                    path: `signup`,
+                    title: `Sign Up`,
+                    event: true,
+                  });
+                }}
               >
                 <Link to="/signup" style={{ color: "inherit", textDecoration: "none" }}>
                   Sign Up
@@ -71,6 +78,13 @@ export default function Navbar({ token, setToken }: { token: AuthToken | null; s
                     backgroundColor: "rgba(255,255,255,0.15)",
                     borderColor: "white",
                   },
+                }}
+                onClick={() => {
+                  (window as any).goatcounter?.count({
+                    path: `login`,
+                    title: `Login`,
+                    event: true,
+                  });
                 }}
               >
                 <Link to="/login" style={{ color: "inherit", textDecoration: "none" }}>
